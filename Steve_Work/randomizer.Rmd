@@ -15,41 +15,39 @@ library(tidyverse)
 ```{r}
 path <- "Experiment_Data .xlsx"
 init_data <- read_excel(path, sheet = "Consolidated Data - Static")    # by name
-head(init_data)
+init_data
 ```
 
 ```{r}
-set.seed(123)
+set.seed(22)
 ```
 
 ```{r}
 # Create dog IDs
-print(nrow(init_data))
-male_dogs <- init_data[init_data$Sex=="male",]$Rescue_ID
-length(male_dogs)
-female_dogs <- init_data[init_data$Sex=="female",]$Rescue_ID
-length(female_dogs)
+print(nrow(init_data %>%  filter(init_data$'Pre-Treatment Description' == "No")))
+stigma_dogs <- init_data %>%
+  filter(init_data$'Breed Group'=="Stigma", init_data$'Pre-Treatment Description' == "No")
+stigma_dogs = stigma_dogs$Rescue_ID
+length(stigma_dogs)
+nonstigma_dogs <- init_data %>%
+  filter(init_data$'Breed Group'=="Non-Stigma", init_data$'Pre-Treatment Description' == "No")
+nonstigma_dogs = nonstigma_dogs$Rescue_ID
+length(nonstigma_dogs)
 ```
+
 
 ```{r}
 # Randomly assign 50% of each sex to treatment
-male_treatment <- sample(male_dogs, size = floor(length(male_dogs) / 2))
-length(male_treatment)
-female_treatment <- sample(female_dogs, size = floor(length(female_dogs) / 2))
-length(female_treatment)
+stigma_treatment <- sample(male_dogs, size = floor(length(stigma_dogs) / 2))
+length(stigma_treatment)
+nonstigma_treatment <- sample(female_dogs, size = floor(length(nonstigma_dogs) / 2))
+length(nonstigma_treatment)
 ```
 
-```{r}
-# Assign remaining to control
-male_control <- setdiff(male_dogs, male_treatment)
-length(male_control)
-female_control <- setdiff(female_dogs, female_treatment)
-length(female_control)
-```
 
 ```{r}
 # Create a vector of treatment IDs
-treatment_ids <- c(male_treatment, female_treatment)
+treatment_ids <- c(stigma_treatment, nonstigma_treatment)
 
 # Assign Treatment = 1 if DogID is in treatment_ids, else 0
 init_data$Treatment <- ifelse(init_data$Rescue_ID %in% treatment_ids, 1, 0)
@@ -59,26 +57,9 @@ init_data$Treatment <- ifelse(init_data$Rescue_ID %in% treatment_ids, 1, 0)
 init_data
 ```
 
-
 ```{r}
-# Randomly assign 50% of each sex to treatment
-male_treatment <- sample(male_dogs, size = floor(length(male_dogs) / 2))
-female_treatment <- sample(female_dogs, size = floor(length(female_dogs) / 2))
+write.csv(init_data, file = "InitialRandom_10_07_25.csv", row.names = FALSE)
 ```
 
 
-```{r}
-assigned <- init_data %>%
-  group_by(Sex) %>%
-  mutate(.row = row_number(),
-         .perm = sample(n()),
-         .n     = n(),
-         .treat = floor(.n/2) + if (.n %% 2L) rbinom(1, 1, 0.5) else 0L,
-         arm = ifelse(rank(.perm, ties.method = "first") <= .treat, "Treat", "Control")) %>%
-  ungroup() %>%
-  select(-.row, -.perm, -.n, -.treat)
-
-# Check
-assigned %>% count(sex, arm)
-```
-
+ALL ADDITIONAL RANDOMIZATIONS WILL BE DONE ON A BATCH/TWICE WEEKLY BASIS
