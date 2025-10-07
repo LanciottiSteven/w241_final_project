@@ -14,7 +14,8 @@ library(tidyverse)
 
 ```{r}
 path <- "Experiment_Data .xlsx"
-init_data <- read_excel(path, sheet = "Consolidated Data - Static")    # by name
+ingest_data <- read_excel(path, sheet = "Consolidated Data - Static")    # by name
+init_data <- ingest_data %>%  filter(ingest_data$'Pre-Treatment Description' == "No")
 init_data
 ```
 
@@ -45,20 +46,23 @@ length(nonstigma_treatment)
 ```
 
 
+
 ```{r}
 # Create a vector of treatment IDs
 treatment_ids <- c(stigma_treatment, nonstigma_treatment)
 
+length(treatment_ids)
+
 # Assign Treatment = 1 if DogID is in treatment_ids, else 0
-init_data$Treatment <- ifelse(init_data$Rescue_ID %in% treatment_ids, 1, 0)
+# init_data$Treatment <- ifelse(init_data$Rescue_ID %in% treatment_ids, 1, 0)
 ```
 
 ```{r}
-init_data
+#init_data
 ```
 
 ```{r}
-write.csv(init_data, file = "InitialRandom_10_07_25.csv", row.names = FALSE)
+write.csv(treatment_ids, file = "InitialRandom_10_07_25.csv", row.names = FALSE)
 ```
 
 
