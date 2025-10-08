@@ -9,7 +9,8 @@ library(readxl)
 library(dplyr)
 library(sandwich)   # for robust SEs
 library(lmtest)     # for coeftest()
-library(tidyverse)
+#library(tidyverse)
+library(data.table)
 ```
 
 ```{r}
@@ -20,9 +21,46 @@ init_data
 ```
 
 ```{r}
-set.seed(22)
+stigma_dogs <- as.data.table(init_data[init_data$"Breed Group"=="Stigma",])
+stigma_dogs
+nonstigma_dogs <- as.data.table(init_data[init_data$"Breed Group"=="Non-Stigma",])
+nonstigma_dogs
 ```
 
+```{r}
+
+set.seed(1013)
+stigma_dogs[, treatment := rbinom(.N, 1, 0.5)]
+stigma_dogs
+
+stigma_dogs %>%
+  group_by(treatment) %>%
+  summarise(count = n())
+
+nonstigma_dogs[, treatment := rbinom(.N, 1, 0.5)]
+nonstigma_dogs
+
+nonstigma_dogs %>%
+  group_by(treatment) %>%
+  summarise(count = n())
+```
+
+
+
+```{r}
+combined_dt <- rbind(stigma_dogs, nonstigma_dogs)
+```
+
+```{r}
+write.csv(combined_dt, file = "InitialRandom_10_07_25.csv", row.names = FALSE)
+```
+
+
+
+
+
+
+********DO NOT USE***************
 ```{r}
 # Create dog IDs
 print(nrow(init_data %>%  filter(init_data$'Pre-Treatment Description' == "No")))
@@ -34,6 +72,10 @@ nonstigma_dogs <- init_data %>%
   filter(init_data$'Breed Group'=="Non-Stigma", init_data$'Pre-Treatment Description' == "No")
 nonstigma_dogs = nonstigma_dogs$Rescue_ID
 length(nonstigma_dogs)
+```
+
+```{r}
+init_data %>%  filter(init_data$Rescue_ID == 'A0058282139')
 ```
 
 
