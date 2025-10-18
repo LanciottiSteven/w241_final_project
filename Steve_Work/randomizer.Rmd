@@ -13,6 +13,8 @@ library(lmtest)     # for coeftest()
 library(data.table)
 ```
 
+Initial randomization has been run... move down to randomizer updater code.
+
 ```{r}
 path <- "Experiment_Data .xlsx"
 ingest_data <- read_excel(path, sheet = "Consolidated Data - Static")    # by name
@@ -109,3 +111,77 @@ write.csv(treatment_ids, file = "InitialRandom_10_07_25.csv", row.names = FALSE)
 
 
 ALL ADDITIONAL RANDOMIZATIONS WILL BE DONE ON A BATCH/TWICE WEEKLY BASIS
+
+
+```{r}
+path <- "Experiment_Data .xlsx"
+initial_data <- read_excel(path, sheet = "InitialRandom_10_07_25")
+latest_data <- read_excel(path, sheet = "Consolidated Data - Static")
+```
+
+
+```{r}
+initial_data
+latest_data
+```
+
+
+```{r}
+init_stigma_dogs <- as.data.table(initial_data[initial_data$"Breed Group"=="Stigma",])
+stigma_dogs <- init_stigma_dogs[, c("Breed Group", "Rescue_ID", "Name - AdoptAPet","treatment")]
+stigma_dogs
+init_nonstigma_dogs <- as.data.table(initial_data[initial_data$"Breed Group"=="Non-Stigma",])
+nonstigma_dogs <- init_nonstigma_dogs[, c("Breed Group", "Rescue_ID", "Name - AdoptAPet","treatment")]
+nonstigma_dogs
+init_latest_stigma <- as.data.table(latest_data[latest_data$"Breed Group"=="Stigma",])
+latest_stigma_dogs <- init_latest_stigma[is.na(init_latest_stigma$`Treatment/Control`), c("Breed Group", "Rescue_ID", "Name - AdoptAPet")]
+latest_stigma_dogs
+init_latest_nonstigma <- as.data.table(latest_data[latest_data$"Breed Group"=="Non-Stigma",])
+latest_nonstigma_dogs <- init_latest_nonstigma[is.na(init_latest_nonstigma$`Treatment/Control`), c("Breed Group", "Rescue_ID", "Name - AdoptAPet")]
+latest_nonstigma_dogs
+```
+
+```{r}
+total_sitgma <- rbindlist(list(stigma_dogs,latest_stigma_dogs),fill = TRUE)
+total_nonsitgma <- rbindlist(list(nonstigma_dogs,latest_nonstigma_dogs),fill = TRUE)
+total_sitgma
+total_nonsitgma
+```
+
+
+
+```{r}
+set.seed(1013)
+total_sitgma[, treatment_10_18_25 := rbinom(.N, 1, 0.5)]
+total_sitgma
+
+total_sitgma %>%
+  group_by(treatment_10_18_25) %>%
+  summarise(count = n())
+
+total_nonsitgma[, treatment_10_18_25 := rbinom(.N, 1, 0.5)]
+total_nonsitgma
+
+total_nonsitgma %>%
+  group_by(treatment_10_18_25) %>%
+  summarise(count = n())
+```
+
+
+```{r}
+combined_dt <- rbind(total_sitgma, total_nonsitgma)
+```
+
+```{r}
+write.csv(combined_dt, file = "Randomize_10_18_25.csv", row.names = FALSE)
+```
+
+
+
+
+
+
+
+
+
+
