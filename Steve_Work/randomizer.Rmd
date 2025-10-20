@@ -115,7 +115,7 @@ ALL ADDITIONAL RANDOMIZATIONS WILL BE DONE ON A BATCH/TWICE WEEKLY BASIS
 
 ```{r}
 path <- "Experiment_Data .xlsx"
-initial_data <- read_excel(path, sheet = "Randomize_10_18_25")
+initial_data <- read_excel(path, sheet = "InitialRandom_10_07_25")
 latest_data <- read_excel(path, sheet = "Consolidated Data - Static")
 ```
 
@@ -134,11 +134,11 @@ init_nonstigma_dogs <- as.data.table(initial_data[initial_data$"Breed Group"=="N
 nonstigma_dogs <- init_nonstigma_dogs[, c("Breed Group", "Rescue_ID", "Name - AdoptAPet","treatment")]
 nonstigma_dogs
 init_latest_stigma <- as.data.table(latest_data[latest_data$"Breed Group"=="Stigma",])
-latest_stigma_dogs <- init_latest_stigma[is.na(init_latest_stigma$`T/C Find`), c("Breed Group", "Rescue_ID", "Name - AdoptAPet")]
+latest_stigma_dogs <- init_latest_stigma[is.na(init_latest_stigma$`Initial T/C Find`), c("Breed Group", "Rescue_ID", "Name - AdoptAPet")]
 latest_stigma_dogs <- na.omit(latest_stigma_dogs)
 latest_stigma_dogs
 init_latest_nonstigma <- as.data.table(latest_data[latest_data$"Breed Group"=="Non-Stigma",])
-latest_nonstigma_dogs <- init_latest_nonstigma[is.na(init_latest_nonstigma$`T/C Find`), c("Breed Group", "Rescue_ID", "Name - AdoptAPet")]
+latest_nonstigma_dogs <- init_latest_nonstigma[is.na(init_latest_nonstigma$`Initial T/C Find`), c("Breed Group", "Rescue_ID", "Name - AdoptAPet")]
 latest_nonstigma_dogs <- na.omit(latest_nonstigma_dogs)
 latest_nonstigma_dogs 
 ```
