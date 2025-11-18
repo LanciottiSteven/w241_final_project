@@ -114,7 +114,7 @@ ALL ADDITIONAL RANDOMIZATIONS WILL BE DONE ON A BATCH/TWICE WEEKLY BASIS
 
 
 ```{r}
-path <- "Experiment_Data .xlsx"
+path <- "Experiment_Data.xlsx"
 initial_data <- read_excel(path, sheet = "Randomize_10_18_25")
 latest_data <- read_excel(path, sheet = "Consolidated Data - Static")
 ```
@@ -179,10 +179,11 @@ total_nonsitgma
 
 ```{r}
 combined_dt <- rbind(total_sitgma, total_nonsitgma)
+combined_dt
 ```
 
 ```{r}
-write.csv(combined_dt, file = "Randomize_10_20_25.csv", row.names = FALSE)
+write.csv(combined_dt, file = "Randomize_11_17_25.csv", row.names = FALSE)
 ```
 
 
