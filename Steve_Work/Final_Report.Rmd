@@ -50,6 +50,7 @@ experiment_data <- df[, .(
   Pretreat_views = `PreTreat- Seen_SearchResults_2008`,
   Pretreat_open = `PreTreat- Details_Opened_2008`,
   Color = Color,
+  Black_Dog = c(0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,1,0,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,1),
   Age = Age,
   Sex = ifelse(Sex=="male",1,0),
   Size = ifelse(Size %in% c("Med. 26-60 lbs (12-27 kg)"),"medium",ifelse(Size %in% c("Large 61-100 lbs (28-45 kg)"),"large","small")),
