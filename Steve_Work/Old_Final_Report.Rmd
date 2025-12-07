@@ -1,0 +1,143 @@
+---
+title: "Final_Report"
+output: pdf_document
+date: "2025-12-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!-- 
+R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+ -->
+
+```{r imports, include=FALSE}
+install.packages("readxl")
+
+```
+
+```{r DataIngest, include=FALSE}
+library(readxl)
+library(data.table)
+excel_sheets("Experiment_Data.xlsx")
+
+df <- as.data.table(read_excel("Experiment_Data.xlsx", sheet = "Final Data"))
+df
+```
+
+```{r DataCleanup, include=FALSE}
+df[, unique(`Breed Group`)]
+df[, unique(`Treatment Group`)]
+df[, unique(Outcome)]
+
+experiment_data <- df[, .(
+  DogName        = `Name - AdoptAPet`,
+  Stigma         = ifelse(`Breed Group` == "Stigma", 1L, 0L),
+  Treatment      = `Treatment Group`,
+  Outcome_Experiment = ifelse(Outcome == "None", 0L, 1L),
+  Compliance = fifelse(
+    (`Treatment Group` == 1 & (is.na(Bio) | Bio %in% c("NA", "N/A"))) |
+    (`Treatment Group` == 1 & Outcome %in% c("Transported - pre bio", "Adopted - pre bio")),
+    0L,  
+    1L   
+  ),
+  Pretreat_LOS = `PreTreat LOS`,
+  Pretreat_views = `PreTreat- Seen_SearchResults_2008`,
+  Pretreat_open = `PreTreat- Details_Opened_2008`,
+  Color = Color,
+  Black_Dog = c(0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,1,0,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,1),
+  Age = Age,
+  Sex = ifelse(Sex=="male",1,0),
+  Size = ifelse(Size %in% c("Med. 26-60 lbs (12-27 kg)"),"medium",ifelse(Size %in% c("Large 61-100 lbs (28-45 kg)"),"large","small")),
+  Housebroken = ifelse(Housebroken=="Yes",1,0),
+  Special_Needs = ifelse(Special_Needs=="Yes",1,0),
+  Kids = ifelse(OK_With_Kids=="Yes", 1,0),
+  Dogs = ifelse(OK_With_Dogs=="Yes",1,0)
+)]
+
+experiment_data
+```
+<!-- 
+Note: Dogs, Kids, Special Needs, Housebroken are all pretty much the same for each dog so can ignore
+Color: primary color black - 1/0
+ -->
+# Introduction
+Introduction goes here...
+1) An introduction that poses the research question.
+2) Do not include a signposting paragraph. These are tedious and your paper should be well structured enough that it stands without one.
+3) A justification -- based on either previous research (theory), business intuition (inductive theory), or some other structure (lazy theory) -- that informs your reader why you have chosen to conduct this specific experiment.
+4) A specific statement of the hypotheses that are up for test and why you think they should show a difference (this comes from #3 above).
+
+
+# Dog Adoption Field Experiment
+## Potential Outcomes
+Comparison of Potential Outcomes - A clear statement is made that describes what potential outcomes are going to be compared to which other. This could come in the form of an explicit appeal to the ROXO comparison, but it need not necessarily be. Clarity in this exposition is crucial.
+
+## Randomization Process
+Randomization Process - Given the design that you've written down, how will you actually go about creating random assignment into one or more of the groups? If this is not explicitly random, then detail what trade offs you are having to make.
+If you have any reason to doubt that randomization was not conducted according to plan -- that is, it isn't random -- then checks to evaluate any deviations should be presented, consequences for these deviations considered, and remedies -- to the extent they are possible -- proposed.
+
+## Treatment
+Treatment - What is the treatment? Specifics of the feature, or experience, or intervention should be provided somewhere in the document; frequently this works well in the main body; it can also work well in an appendix.
+If there was not perfect compliance to the treatment regime, then checks to evaluate deviations should be presented and deviations considered. To the extent that they are possible, remedies should be proposed.
+
+## Experiment Population
+Your report should make very clear who was considered for involvement in your experiment, who was assigned, and whose data will eventually be used. Consider, as an example, the flow chart on p. 439 of Gerber and Green. (Note that the U.S. Food and Drug Administration calls this information a CONSORT statement.
+
+** I'd say this is where we can talk about how we go from a shelter of 100+ dogs, down to ~60 dogs in our experiment... with the reason being:
+1) A dog is not eligible for adoption until a surgery date is scheduled.
+2) There are many types of dog intakes, including stray, which require at least a 10 day hold.
+3) Since our treatment was to add a bio, we had to ignore any dogs with existing bios (ended up being ~30 dogs I think)
+
+## Power Calculation
+Power Calculation -- Given pre-experiment assumptions about effect size and experiment size, how much power does the experiment anticipate generating.
+```{r PowerCalculation, echo=FALSE}
+
+```
+
+# Analysis
+## Data
+Data: the data is clearly detailed, and the reader can understand at a conceptual and operational level
+- The outcome that is being measured and reasoned about
+- How the treatment that was described in the /Experimental Details/ section maps into the operational space for the models.
+- Important covariate features that will be used in the analysis.
+
+## Models
+Models: there is a clear, structured, and progressive plan for testing and reporting.
+- Data - Models use data from units that is appropriate for estimating the causal quantity of interest.
+- Design - Estimates for causal effects identify the same quantities that are designed for in the /Experiment Details/ section.
+- Models - Models first estimate simple "treatment-control" contrast, unadorned with additional model features intended to improve precision;
+- Models - To the extent that it was designed for, models increase precision of estimates using 'good controls'
+- If implicated in the Theory or Hypotheses, either HTE or subgroup analysis are handled appropriately.
+
+**Spoke with Clinton about this...He suggested running/displaying 3 models (ITT or IVreg... he said that we are good with using lm and not needing a log model, the lm coefficient will tell us the adaptability rate):
+1) Simple model: Outcome ~ Treatment
+2) Control Variables: Outcome ~ Treatment + Stigma + Complier
+3) All Features: Outcome ~ Treatment + Stigma + Complier + Pretreat_LOS + Pretreat_views + Pretreat_open + Age + Sex + Size + 
+  (include F-tests to see if the additional features add any value)
+
+## Results
+Tables: The findings of the experiment can be read through a limited number of tables. Tables:
+- Communicate a specific point
+- Are titled, have axes labeled, and legends included.
+- Include a caption that is informative enough that the figure is readable without reading more than the Abstract of the paper and knowing the treatments and outcome measures.
+
+Supporting Figures:
+- Communicate a specific point
+- Are titled, have axes labeled, and legends included.
+- Include a caption that is informative enough that the figure is readable without reading more than the Abstract of the paper and knowing the treatments and outcome measures.
+
+**Clinton suggested:
+- SJ plot
+- Box plot
+- Scatter plot with mean adoption rate for treatment/control
+
+## Lessons Learned and Further Research Suggestions
+
+
+
