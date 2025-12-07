@@ -22,8 +22,15 @@ When you click the **Knit** button a document will be generated that includes bo
 ```
 
 ```{r imports, include=FALSE}
+# Load required packages
+if(!require(pwr)) install.packages("pwr", dependencies=TRUE)
+if(!require(ggplot2)) install.packages("ggplot2", dependencies=TRUE)
 install.packages("readxl")
-install.packages("AER")
+library(pwr)
+library(ggplot2)
+library(sandwich)
+library(stargazer)
+library(AER)
 ```
 
 ```{r DataIngest, include=FALSE}
@@ -141,7 +148,67 @@ and experiment size, how much power does the experiment anticipate
 generating.
 
 ```{r PowerCalculation, echo=FALSE}
+# Function to calculate power for binary outcome
+binary_power <- function(p1, p2, n, sig.level = 0.05) {
+    h <- 2 * asin(sqrt(p1)) - 2 * asin(sqrt(p2))
+    power_result <- pwr.2p.test(h = abs(h), n = n, sig.level = sig.level, alternative = "two.sided")
+    return(power_result$power)
+}
 
+# Function to find required sample size for a target power
+sample_for_power <- function(power_target, p1, p2, sig.level = 0.05) {
+    h <- 2 * asin(sqrt(p1)) - 2 * asin(sqrt(p2))
+    n_needed <- pwr.2p.test(h = abs(h), sig.level = sig.level, power = power_target, alternative = "two.sided")$n
+    return(ceiling(n_needed))  # round up to nearest integer
+}
+
+# Parameters
+p1 <- 0.5  # control group proportion
+p2 <- 0.6  # treatment group proportion
+target_powers <- c(0.80, 0.85, 0.90, 0.92, 0.95)
+
+# Compute sample sizes
+sample_sizes <- sapply(target_powers, sample_for_power, p1 = p1, p2 = p2)
+
+# Compute actual power for these sample sizes
+powers_computed <- sapply(sample_sizes, binary_power, p1 = p1, p2 = p2)
+
+# Create a table
+power_table <- data.frame(
+    Target_Power = target_powers,
+    Sample_Size_Per_Group = sample_sizes,
+    Actual_Power = round(powers_computed, 3),
+    Total_Size = sample_sizes * 2
+)
+
+# Print table
+print(power_table)
+
+
+# Plot power vs sample size
+
+# Define a range of sample sizes
+sample_range <- seq(300, 700, by = 10)
+
+# Compute power for each sample size
+power_values <- sapply(sample_range, binary_power, p1 = p1, p2 = p2)
+
+# Create a data frame for plotting
+power_df <- data.frame(
+    Sample_Size = sample_range,
+    Power = power_values
+)
+
+# Plot power vs sample size
+ggplot(power_df, aes(x = Sample_Size, y = Power)) +
+    geom_line(color = "blue", size = 1.2) +
+    geom_hline(yintercept = c(0.8, 0.85, 0.9, 0.95), linetype = "dashed", color = "red") +
+    labs(
+        title = "Power vs Sample Size for Binary Outcome Experiment",
+        x = "Sample Size per Group",
+        y = "Power"
+    ) +
+    theme_minimal(base_size = 14)
 ```
 
 # Analysis
@@ -269,6 +336,125 @@ To do in model section:
 (1) Decide if we are doing IV reg or ITT
 
 (2) F-tests
+
+```{r}
+experiment_data
+```
+
+
+```{r SimpleModel}
+m1 <- experiment_data[ , lm(Outcome_Experiment~Treatment)]
+m2 <- experiment_data[ , lm(Outcome_Experiment~Treatment+Stigma)]
+m1$vcovHC_ <- vcovHC(m1)
+m2$vcovHC_ <- vcovHC(m2)
+stargazer(m1, m2,
+          type = "text",
+          se = list(sqrt(diag(m1$vcovHC_)),sqrt(diag(m2$vcovHC_))),  
+          title = "Treatment Effects With and Without Block Average Controls",
+          column.labels = c("Without Block", "With Block"),
+          covariate.labels = c("Treatment", "Block Average"),
+          dep.var.labels = "Adoption Rate",
+          model.numbers = FALSE,
+          notes = "Robust standard errors in parentheses")
+```
+The simple model tells us that having a bio leads to a ~13% greater probability of being adopted. When controling for stigma breeds, by being a stigma breed there is a ~18% reduction in adoption rate, however when being a stigma breed and having a bio that improves to only a ~6.5% reduction in adoption rate. However, the standard errors are very large which leads these coefficients to bot being stat sig.  
+```{r}
+first_stage <- lm(Treatment ~ Compliance + Stigma, data = experiment_data)
+summary(first_stage)
+```
+
+
+```{r}
+m3 <- experiment_data[ , ivreg(
+  Outcome_Experiment ~ Compliance + Stigma | Treatment + Stigma
+)]
+m4 <- experiment_data[ , ivreg(
+  Outcome_Experiment ~ Compliance + Stigma + Pretreat_LOS + Pretreat_views + Pretreat_open + Age + Sex + Size + Black_Dog | Treatment + Stigma + Pretreat_LOS + Pretreat_views + Pretreat_open + Age + Sex + Size + Black_Dog
+)]
+m3$vcovHC_ <- vcovHC(m3)
+m4$vcovHC_ <- vcovHC(m4)
+stargazer(m3, m4,
+          type = "text",
+          se = list(sqrt(diag(m3$vcovHC_)),sqrt(diag(m4$vcovHC_))),  
+          title = "Treatment Effects of Compliars",
+          column.labels = c("Small Model with Compliance (CATE)","Large Model with Compliance (CATE)"),
+          dep.var.labels = "Adoption Rate",
+          model.numbers = FALSE,
+          notes = "Robust standard errors in parentheses")
+```
+
+```{r}
+m5 <- experiment_data[Compliance==1, lm(Outcome_Experiment ~ Treatment)]
+m6 <- experiment_data[Compliance==1, lm(Outcome_Experiment ~ Treatment + Stigma)]
+m7 <- experiment_data[Compliance==1, lm(Outcome_Experiment ~ Treatment + Stigma +
+                                         Pretreat_LOS + Pretreat_views + Pretreat_open +
+                                         Age + Sex + Size + Black_Dog)]
+
+# Use HC2 instead of HC3
+vcov5 <- vcovHC(m5, type = "HC1")
+vcov6 <- vcovHC(m6, type = "HC1")
+vcov7 <- vcovHC(m7, type = "HC1")
+
+stargazer(
+  m5, m6, m7,
+  type = "text",
+  se = list(
+    sqrt(diag(vcov5)),
+    sqrt(diag(vcov6)),
+    sqrt(diag(vcov7))
+  ),
+  title = "Treatment Effects With and Without Block Average Controls",
+  column.labels = c("Simple Model", "Blocked Model", "Full Model"),
+  dep.var.labels = "Adoption Rate",
+  model.numbers = FALSE,
+  notes = "HC2 robust standard errors in parentheses"
+)
+```
+
+```{r}
+# 1) Subset data first
+d <- experiment_data[Compliance == 1, ]
+
+# 2) Fit models
+m5 <- lm(Outcome_Experiment ~ Treatment, data = d)
+m6 <- lm(Outcome_Experiment ~ Treatment + Stigma, data = d)
+m7 <- lm(
+  Outcome_Experiment ~ Treatment + Stigma +
+    Pretreat_LOS + Pretreat_views + Pretreat_open +
+    Age + Sex + Size + Black_Dog,
+  data = d
+)
+
+# 3) Helper to get robust SE vector that is aligned to the coef() order
+robust_se <- function(model, type = "HC1") {
+  V <- vcovHC(model, type = type)
+  se <- sqrt(diag(V))
+  # ensure order matches coef()
+  se[match(names(coef(model)), names(se))]
+}
+
+se_m5 <- robust_se(m5, type = "HC1")
+se_m6 <- robust_se(m6, type = "HC1")
+se_m7 <- robust_se(m7, type = "HC1")
+
+# (optional) sanity checks
+length(coef(m5)); length(se_m5)
+length(coef(m6)); length(se_m6)
+length(coef(m7)); length(se_m7)
+
+# 4) Stargazer with aligned SEs
+stargazer(
+  m5, m6, m7,
+  type = "text",
+  se = list(se_m5, se_m6, se_m7),
+  title = "Treatment Effects With and Without Block Average Controls",
+  column.labels = c("Simple Model", "Blocked Model", "Full Model"),
+  dep.var.labels = "Adoption Rate",
+  model.numbers = FALSE,
+  notes = "Robust standard errors (HC2) in parentheses"
+)
+```
+
 
 ## Results
 
