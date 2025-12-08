@@ -23,9 +23,9 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r imports, include=FALSE}
 # Load required packages
-if(!require(pwr)) install.packages("pwr", dependencies=TRUE)
-if(!require(ggplot2)) install.packages("ggplot2", dependencies=TRUE)
-install.packages("readxl")
+#if(!require(pwr)) install.packages("pwr", dependencies=TRUE)
+#if(!require(ggplot2)) install.packages("ggplot2", dependencies=TRUE)
+#install.packages("readxl")
 library(pwr)
 library(ggplot2)
 library(sandwich)
@@ -207,7 +207,7 @@ ggplot(power_df, aes(x = Sample_Size, y = Power)) +
     geom_line(color = "blue", size = 1.2) +
     geom_hline(yintercept = c(0.8, 0.85, 0.9, 0.95), linetype = "dashed", color = "red") +
     labs(
-        title = "Power vs Sample Size for Binary Outcome Experiment",
+        title = "Power vs Sample Size for Adoption Outcome Experiment",
         x = "Sample Size per Group",
         y = "Power"
     ) +
