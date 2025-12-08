@@ -31,6 +31,9 @@ library(ggplot2)
 library(sandwich)
 library(stargazer)
 library(AER)
+library(tidyverse)
+library(lubridate)
+library(stringr)
 ```
 
 ```{r DataIngest, include=FALSE}
@@ -222,6 +225,23 @@ and reasoned about - How the treatment that was described in the
 models. - Important covariate features that will be used in the
 analysis.
 
+```{r}
+experiment_data %>%
+  mutate(Outcome_Label = ifelse(Outcome_Experiment == 1, "Adopted", "Not Adopted")) %>%
+  count(Outcome_Label) %>%
+  ggplot(aes(x = Outcome_Label, y = n, fill = Outcome_Label)) +
+  geom_col(width = 0.7, alpha = 0.85) +
+  geom_text(aes(label = n), vjust = -0.4, size = 5) +
+  labs(title = "Counts of Adoption Outcomes",
+       x = "",
+       y = "Count") +
+  scale_fill_manual(values = c("Adopted" = "#4C9F70",
+                               "Not Adopted" = "#E07A5F")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.35))) +  
+  theme_minimal(base_size = 15)
+
+```
+
 ## Models
 
 Models: there is a clear, structured, and progressive plan for testing
@@ -252,6 +272,7 @@ head(experiment_data)
 
 ```{r}
 # starting with ITT (intent to treat)
+
 model_ITT_1 = lm(Outcome_Experiment ~ Treatment, data = experiment_data)
 
 summary(model_ITT_1)
@@ -282,6 +303,53 @@ model_ITT_4 = lm(Outcome_Experiment ~ Treatment + Stigma + Age + Sex + Size + Bl
 summary(model_ITT_4)
 ```
 
+Just with common data:
+
+```{r}
+
+
+vars_all <- c("Outcome_Experiment", "Treatment", "Stigma",
+              "Pretreat_LOS", "Pretreat_views", "Pretreat_open",
+              "Age", "Sex", "Size", "Black_Dog")
+
+dat_common <- experiment_data[complete.cases(experiment_data[, vars_all, with = FALSE])]
+
+```
+
+```{r}
+nrow(dat_common)
+nrow(experiment_data)
+```
+
+```{r}
+model_1 <- lm(Outcome_Experiment ~ Treatment, data = dat_common)
+model_2 <- lm(Outcome_Experiment ~ Treatment + Stigma, data = dat_common)
+model_3a <- lm(Outcome_Experiment ~ Treatment + Stigma + Pretreat_LOS + 
+                   Pretreat_views + Pretreat_open + Age + Sex + Size + Black_Dog, 
+                   data = dat_common)
+model_3b <- lm(Outcome_Experiment ~ Treatment + Stigma + Age + Sex + Size + Black_Dog, 
+                   data = dat_common)
+
+
+
+stargazer(model_1, 
+          model_2, 
+          model_3a, 
+          model_3b,
+          type = "text",
+          title = "ITT Models",
+          dep.var.labels = "Outcome_Experiment",
+          column.labels = c("Model 1", "Model 2", "Model 3a", "Model 3b"),
+          digits = 3,
+          omit.stat = c("f", "ser")) 
+```
+
+```{r}
+anova(model_1, model_2)
+anova(model_2, model_3a)
+anova(model_2, model_3b)
+```
+
 **Instrumental Variable Models:**
 
 ```{r}
@@ -301,6 +369,9 @@ head(experiment_data)
 table(experiment_data$Compliance)
 ```
 
+\
+\
+
 IV Regression Models:
 
 ```{r}
@@ -317,8 +388,7 @@ summary(model_IV_2)
 
 ```{r}
 
-model_IV_3 = ivreg(Outcome_Experiment  ~ actually_treated + Stigma + Pretreat_LOS + Pretreat_views +
-                   Pretreat_open + Age + Sex + Size + Black_Dog | Treatment + Stigma + Pretreat_LOS + Pretreat_views +
+model_IV_3 = ivreg(Outcome_Experiment  ~ actually_treated + Stigma + Pretreat_LOS + Pretreat_views + Pretreat_open + Age + Sex + Size + Black_Dog | Treatment + Stigma + Pretreat_LOS + Pretreat_views +
                    Pretreat_open + Age + Sex + Size + Black_Dog, data = experiment_data)
 
 summary(model_IV_3)
@@ -341,7 +411,6 @@ To do in model section:
 experiment_data
 ```
 
-
 ```{r SimpleModel}
 m1 <- experiment_data[ , lm(Outcome_Experiment~Treatment)]
 m2 <- experiment_data[ , lm(Outcome_Experiment~Treatment+Stigma)]
@@ -357,12 +426,18 @@ stargazer(m1, m2,
           model.numbers = FALSE,
           notes = "Robust standard errors in parentheses")
 ```
-The simple model tells us that having a bio leads to a ~13% greater probability of being adopted. When controling for stigma breeds, by being a stigma breed there is a ~18% reduction in adoption rate, however when being a stigma breed and having a bio that improves to only a ~6.5% reduction in adoption rate. However, the standard errors are very large which leads these coefficients to bot being stat sig.  
+
+The simple model tells us that having a bio leads to a \~13% greater
+probability of being adopted. When controling for stigma breeds, by
+being a stigma breed there is a \~18% reduction in adoption rate,
+however when being a stigma breed and having a bio that improves to only
+a \~6.5% reduction in adoption rate. However, the standard errors are
+very large which leads these coefficients to bot being stat sig.
+
 ```{r}
 first_stage <- lm(Treatment ~ Compliance + Stigma, data = experiment_data)
 summary(first_stage)
 ```
-
 
 ```{r}
 m3 <- experiment_data[ , ivreg(
@@ -455,7 +530,6 @@ stargazer(
 )
 ```
 
-
 ## Results
 
 Tables: The findings of the experiment can be read through a limited
@@ -473,5 +547,61 @@ measures.
 
 \*\*Clinton suggested: - SJ plot - Box plot - Scatter plot with mean
 adoption rate for treatment/control
+
+```{r}
+experiment_data %>%
+  group_by(Treatment) %>%
+  summarize(Adoption_Rate = mean(Outcome_Experiment)) %>%
+  ggplot(aes(x = factor(Treatment), y = Adoption_Rate, fill = factor(Treatment))) +
+  geom_col(alpha = 0.8) +
+  geom_text(aes(label = scales::percent(Adoption_Rate)), 
+            vjust = -0.5, size = 5) +
+  labs(title = "Adoption Rates by Treatment Group",
+       x = "Group (0 = Control, 1 = Treatment)",
+       y = "Adoption Rate") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = expansion(mult = c(0, 0.2))) +
+  theme_minimal(base_size = 14)
+
+```
+
+```{r}
+experiment_data %>%
+  group_by(Treatment, Stigma) %>%
+  summarize(Adoption_Rate = mean(Outcome_Experiment), .groups = "drop") %>%
+  ggplot(aes(x = factor(Treatment),
+             y = Adoption_Rate,
+             fill = factor(Stigma))) +
+  geom_col(
+    position = position_dodge(width = 0.9),   # wider dodge prevents overlap
+    width = 0.8,                               # narrower bars for spacing
+    alpha = 0.85
+  ) +
+  geom_text(aes(label = scales::percent(Adoption_Rate)),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5,
+            size = 4.5) +
+  labs(title = "Adoption Rates by Treatment and Stigma Group",
+       x = "Treatment (0 = Control, 1 = Treated)",
+       y = "Adoption Rate",
+       fill = "Stigma") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = expansion(mult = c(0, 0.25))) +
+  scale_fill_manual(values = c("#6aaed6", "#d67a6a"),
+                    labels = c("Non-Stigmatized", "Stigmatized")) +
+  theme_minimal(base_size = 14)
+```
+
+```{r}
+ggplot(experiment_data, aes(x = factor(Treatment),
+                            y = Outcome_Experiment,
+                            color = factor(Treatment))) +
+  geom_jitter(height = 0.05, width = 0.1, alpha = 0.6) +
+  labs(title = "Individual Adoption Outcomes by Treatment Group",
+       x = "Group",
+       y = "Adoption (0/1)") +
+  theme_minimal(base_size = 14)
+
+```
 
 ## Lessons Learned and Further Research Suggestions
